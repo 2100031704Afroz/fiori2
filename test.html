@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiori App Data Extractor</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 25px;
+            background-color: #f7f9fc;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .container {
+            border: none;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            background-color: #fff;
+        }
+
+        h1 {
+            color: #0066cc;
+            margin-top: 0;
+            font-weight: 600;
+            margin-bottom: 25px;
+            font-size: 28px;
+        }
+
+        h2 {
+            color: #1a73e8;
+            font-weight: 500;
+            margin-top: 5px;
+            font-size: 22px;
+        }
+
+        h3 {
+            color: #444;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+            font-size: 15px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 15px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #0066cc;
+            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+            outline: none;
+        }
+
+        input[type="text"]::placeholder {
+            color: #aaa;
+        }
+
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 16px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: #0052a3;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 30px;
+            color: #555;
+            font-size: 16px;
+        }
+
+        .error {
+            color: #d32f2f;
+            margin-top: 15px;
+            display: none;
+            padding: 12px 16px;
+            background-color: #fdeaea;
+            border-radius: 6px;
+            border-left: 4px solid #d32f2f;
+            font-weight: 500;
+        }
+
+        .data-section {
+            margin-bottom: 30px;
+            position: relative;
+            padding: 5px;
+        }
+
+        .data-section h3 {
+            display: inline-block;
+            margin-right: 15px;
+            margin-bottom: 15px;
+        }
+
+        .copy-btn {
+            background-color: #43a047;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            vertical-align: middle;
+            transition: background-color 0.2s;
+        }
+
+        .copy-btn:hover {
+            background-color: #388e3c;
+        }
+
+        .copy-all {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .copy-success {
+            color: #388e3c;
+            font-size: 13px;
+            margin-left: 10px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .data-item {
+            border-left: 4px solid #0066cc;
+            margin-bottom: 15px;
+            background-color: #f8fbff;
+            padding: 12px 16px;
+            border-radius: 4px;
+            transition: box-shadow 0.2s;
+        }
+
+        .data-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .data-item p {
+            margin: 6px 0;
+        }
+
+        .data-item strong {
+            color: #0066cc;
+            font-weight: 500;
+        }
+
+        .data-item-details {
+            font-size: 14px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .copy-text-area {
+            margin-top: 15px;
+            width: 100%;
+            padding: 12px;
+            background-color: #f9fafb;
+            border: 1px dashed #ccc;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: pre;
+            max-height: 180px;
+            overflow-y: auto;
+            display: none;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .app-info {
+            margin-top: 30px;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8fbff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .app-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #0066cc;
+        }
+
+        .app-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .app-meta-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .app-meta-label {
+            font-weight: 600;
+            margin-right: 6px;
+            color: #555;
+        }
+
+        .deprecated-warning {
+            background-color: #fff3f3;
+            border-left: 5px solid #f44336;
+            padding: 14px 18px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            color: #d32f2f;
+            display: flex;
+            align-items: center;
+            border-radius: 4px;
+        }
+
+        .deprecated-icon {
+            margin-right: 12px;
+            font-size: 20px;
+        }
+
+        .app-info-section {
+            display: none;
+        }
+
+        .download-btn {
+            background-color: #43a047;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 16px;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .download-btn:hover {
+            background-color: #388e3c;
+            transform: translateY(-1px);
+        }
+
+        .download-btn:active {
+            transform: translateY(0);
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background-color: #0066cc;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            margin-top: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .success {
+            color: #43a047;
+            font-weight: 500;
+        }
+
+        .error {
+            color: #d32f2f;
+            font-weight: 500;
+        }
+
+        .data-item {
+            border-left: 4px solid #0066cc;
+            margin-bottom: 15px;
+            background-color: #f8fbff;
+            padding: 12px 16px;
+            border-radius: 4px;
+            transition: box-shadow 0.2s;
+        }
+
+        .data-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .data-item p {
+            margin: 6px 0;
+        }
+
+        .data-item strong {
+            color: #0066cc;
+            font-weight: 500;
+        }
+
+        .data-item-details {
+            font-size: 14px;
+            color: #666;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Fiori App Data Extractor</h1>
+        <div class="form-group">
+            <label for="fioriIds">Fiori App IDs (space separated):</label>
+            <input type="text" id="fioriIds" placeholder="e.g., F1048 F1049 F1050">
+        </div>
+        <div class="form-group">
+            <label for="releaseId">Release ID:</label>
+            <input type="text" id="releaseId" placeholder="e.g., S30PCE">
+        </div>
+        <button id="fetchButton">Fetch Data</button>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Processing: 0%</div>
+        </div>
+
+        <button id="downloadButton" class="download-btn">Download Excel</button>
+
+        <div class="loading" id="loading">
+            <p>Loading data, please wait...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <h2>Processing Results</h2>
+            <div id="processingResults"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
