@@ -355,6 +355,49 @@
             color: #666;
             margin-top: 4px;
         }
+
+        .useful-links {
+            margin-top: 40px;
+            padding: 25px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .useful-links h2 {
+            margin-bottom: 20px;
+        }
+
+        .link-item {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            background-color: #f8fbff;
+            border-radius: 6px;
+            transition: box-shadow 0.2s;
+        }
+
+        .link-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .link-item a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+            transition: color 0.2s;
+        }
+
+        .link-item a:hover {
+            color: #0052a3;
+            text-decoration: underline;
+        }
+
+        .link-description {
+            color: #666;
+            font-size: 14px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 
@@ -389,6 +432,18 @@
         <div class="results" id="results">
             <h2>Processing Results</h2>
             <div id="processingResults"></div>
+        </div>
+
+        <div class="useful-links">
+            <h2>Useful Tools</h2>
+            <div class="link-item">
+                <a href="https://comparetwolists.com/" target="_blank" rel="noopener noreferrer">Compare Two Lists</a>
+                <span class="link-description">- Compare and find differences between two lists</span>
+            </div>
+            <div class="link-item">
+                <a href="https://dedupelist.com/#startresults" target="_blank" rel="noopener noreferrer">Remove Duplicates</a>
+                <span class="link-description">- Remove duplicate entries from your list</span>
+            </div>
         </div>
     </div>
 
