@@ -51,6 +51,9 @@ document.getElementById('fetchButton').addEventListener('click', async function 
                     retryFetch(() => fetchSemanticObjects(fioriId, releaseId))
                 ]);
 
+                // Fetch semantic actions
+                const semanticActions = await retryFetch(() => fetchSemanticActions(fioriId, releaseId));
+
                 // Add to results
                 results.push({
                     fioriId,
@@ -64,7 +67,8 @@ document.getElementById('fetchButton').addEventListener('click', async function 
                     spaces,
                     pages,
                     relatedApps,
-                    semanticObjects
+                    semanticObjects,
+                    semanticActions
                 });
 
                 // Update processing results
@@ -141,6 +145,7 @@ function generateExcel(results) {
     const uniquePages = new Set();
     const uniqueRelatedApps = new Set();
     const uniqueSemanticObjects = new Set();
+    const uniqueSemanticActions = new Set();
 
     // Collect all unique values
     validResults.forEach(result => {
@@ -160,7 +165,16 @@ function generateExcel(results) {
         result.spaces.forEach(space => uniqueSpaces.add(space.SpaceName));
         result.pages.forEach(page => uniquePages.add(page.PageName));
         result.relatedApps.forEach(app => uniqueRelatedApps.add(app.FioriId));
-        result.semanticObjects.forEach(obj => uniqueSemanticObjects.add(obj.SemanticObject));
+        result.semanticObjects.forEach(obj => {
+            uniqueSemanticObjects.add(obj.SemanticObject);
+            if (result.semanticActions) {
+                result.semanticActions.forEach(sa => {
+                    if (sa.SemanticObject && sa.SemanticAction) {
+                        uniqueSemanticActions.add(`${sa.SemanticObject}:${sa.SemanticAction}`);
+                    }
+                });
+            }
+        });
     });
 
     // Create data for the single sheet
@@ -179,7 +193,8 @@ function generateExcel(results) {
             'Spaces': result.spaces.map(space => space.SpaceName).join('\n'),
             'Pages': result.pages.map(page => page.PageName).join('\n'),
             'Related Apps': result.relatedApps.map(app => app.FioriId).join('\n'),
-            'Semantic Objects': result.semanticObjects.map(obj => obj.SemanticObject).join('\n')
+            'Semantic Objects': result.semanticObjects.map(obj => obj.SemanticObject).join('\n'),
+            'Semantic Actions': result.semanticActions ? result.semanticActions.map(sa => `${sa.SemanticObject}:${sa.SemanticAction}`).join('\n') : ''
         };
 
         return row;
@@ -200,7 +215,8 @@ function generateExcel(results) {
         'Spaces': Array.from(uniqueSpaces).sort().join('\n'),
         'Pages': Array.from(uniquePages).sort().join('\n'),
         'Related Apps': Array.from(uniqueRelatedApps).sort().join('\n'),
-        'Semantic Objects': Array.from(uniqueSemanticObjects).sort().join('\n')
+        'Semantic Objects': Array.from(uniqueSemanticObjects).sort().join('\n'),
+        'Semantic Actions': Array.from(uniqueSemanticActions).sort().join('\n')
     });
 
     // Create the worksheet
@@ -221,7 +237,8 @@ function generateExcel(results) {
         'K': 40, // Spaces
         'L': 40, // Pages
         'M': 40, // Related Apps
-        'N': 40  // Semantic Objects
+        'N': 40,  // Semantic Objects
+        'O': 40   // Semantic Actions
     };
 
     ws['!cols'] = Object.values(colWidths).map(width => ({ wch: width }));
@@ -876,4 +893,24 @@ function handleEnterKey(event) {
             document.getElementById('fetchButton').click();
         }
     }
+}
+
+// Add this function to fetch semantic actions
+async function fetchSemanticActions(fioriId, releaseId) {
+    const url = `https://fioriappslibrary.hana.ondemand.com/sap/fix/externalViewer/services/SingleApp.xsodata/Details(inpfioriId='${fioriId}',inpreleaseId='${releaseId}',inpLanguage='EN',fioriId='${fioriId}',releaseId='${releaseId}')/SplitAdditionalIntents?$format=json`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.d && data.d.results) {
+        // Map to array of { SemanticObject, SemanticAction }
+        return data.d.results.map(item => ({
+            SemanticObject: item.SemanticObject,
+            SemanticAction: item.SemanticAction
+        }));
+    }
+    return [];
 }
