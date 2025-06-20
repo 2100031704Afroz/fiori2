@@ -179,13 +179,25 @@ function generateExcel(results) {
 
     // Create data for the single sheet
     const excelData = validResults.map(result => {
+        // Combine BSP names from appDetails and bspNames array, ensuring '*' is present for isAdditional=1
+        let bspNamesList = [];
+        if (result.appDetails.BSPName) {
+            bspNamesList.push(result.appDetails.BSPName);
+        }
+        if (result.bspNames && result.bspNames.length > 0) {
+            result.bspNames.forEach(bsp => {
+                if (bsp.BSPName && !bspNamesList.includes(bsp.BSPName)) {
+                    bspNamesList.push(bsp.BSPName);
+                }
+            });
+        }
         const row = {
             'Fiori ID': result.fioriId,
             'App Title': result.appDetails.Title || result.appDetails.AppName,
             'Application Type': result.appDetails.ApplicationType,
             'UI Technology': result.appDetails.UITechnology,
             'Application Component': result.appDetails.ApplicationComponent,
-            'BSP Name': result.appDetails.BSPName || '',
+            'BSP Name': bspNamesList.join('\n'),
             'UI5 Component ID': result.appDetails.SAPUI5ComponentId,
             'Business Roles': result.businessRoles.map(role => role.BusinessRoleName).join('\n'),
             'OData Services': result.technicalNames.map(service => service.TechnicalName).join('\n'),
@@ -196,7 +208,6 @@ function generateExcel(results) {
             'Semantic Objects': result.semanticObjects.map(obj => obj.SemanticObject).join('\n'),
             'Semantic Actions': result.semanticActions ? result.semanticActions.map(sa => `${sa.SemanticObject}:${sa.SemanticAction}`).join('\n') : ''
         };
-
         return row;
     });
 
@@ -699,7 +710,14 @@ async function fetchBSPNames(fioriId, releaseId) {
     }
 
     const data = await response.json();
-    return data.d && data.d.results ? data.d.results : [];
+    if (data.d && data.d.results) {
+        // Append '*' to BSPName if isAdditional is 1
+        return data.d.results.map(item => ({
+            ...item,
+            BSPName: item.isAdditional === 1 ? `${item.BSPName}*` : item.BSPName
+        }));
+    }
+    return [];
 }
 
 // Helper function to copy text to clipboard
