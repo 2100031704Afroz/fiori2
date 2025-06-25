@@ -412,7 +412,24 @@
             <label for="releaseId">Release ID:</label>
             <input type="text" id="releaseId" placeholder="e.g., S30PCE">
         </div>
-        <button id="fetchButton">Fetch Data</button>
+        <div id="fieldSelection" style="margin-bottom: 1em; display: flex; flex-wrap: wrap; gap: 16px;">
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Fiori ID" checked> Fiori ID</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="App Title" checked> App Title</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Application Type" checked> Application Type</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="UI Technology" checked> UI Technology</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Application Component" checked> Application Component</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="BSP Name" checked> BSP Name(Technical Name)</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="UI5 Component ID" checked> UI5 Component ID</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Business Roles" checked> Business Roles</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="OData Services" checked> OData Services</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Technical Catalogs" checked> Technical Catalogs</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Spaces" checked> Spaces</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Pages" checked> Pages</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Related Apps" checked> Related Apps</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Semantic Objects" checked> Semantic Objects</label>
+            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Semantic Actions" checked> Semantic Actions</label>
+        </div>
+        <button id="customDownloadButton" class="download-btn" style="display: block; margin-bottom: 10px;">Download Excel (Selected Fields)</button>
 
         <div class="progress-container" id="progressContainer">
             <div class="progress-bar">
@@ -420,8 +437,6 @@
             </div>
             <div class="progress-text" id="progressText">Processing: 0%</div>
         </div>
-
-        <button id="downloadButton" class="download-btn">Download Excel</button>
 
         <div class="loading" id="loading">
             <p>Loading data, please wait...</p>
