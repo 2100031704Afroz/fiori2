@@ -1,101 +1,3 @@
-document.getElementById('fetchButton').addEventListener('click', async function () {
-    const fioriIds = document.getElementById('fioriIds').value.trim().split(' ').filter(id => id.length > 0);
-    const releaseId = document.getElementById('releaseId').value.trim();
-
-    if (fioriIds.length === 0 || !releaseId) {
-        showError('Please enter both Fiori App IDs and Release ID');
-        return;
-    }
-
-    // Show loading, hide results and error
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('results').style.display = 'none';
-    document.getElementById('error').style.display = 'none';
-    document.getElementById('downloadButton').style.display = 'none';
-    document.getElementById('progressContainer').style.display = 'block';
-
-    try {
-        const results = [];
-        const totalApps = fioriIds.length;
-        let processedApps = 0;
-
-        for (const fioriId of fioriIds) {
-            try {
-                // Update progress
-                processedApps++;
-                const progress = (processedApps / totalApps) * 100;
-                document.getElementById('progressBar').style.width = `${progress}%`;
-                document.getElementById('progressText').textContent = `Processing: ${Math.round(progress)}%`;
-
-                // Fetch app details
-                const appDetails = await fetchAppDetails(fioriId, releaseId);
-                
-                // Fetch all data for the app
-                const [
-                    technicalNames,
-                    businessRoles,
-                    bspNames,
-                    technicalCatalogs,
-                    spaces,
-                    pages,
-                    relatedApps,
-                    semanticObjects
-                ] = await Promise.all([
-                    retryFetch(() => fetchTechnicalNames(fioriId, releaseId)),
-                    retryFetch(() => fetchBusinessRoleNames(fioriId, releaseId)),
-                    retryFetch(() => fetchBSPNames(fioriId, releaseId)),
-                    retryFetch(() => fetchTechnicalCatalogs(fioriId, releaseId)),
-                    retryFetch(() => fetchSpaces(fioriId, releaseId)),
-                    retryFetch(() => fetchPages(fioriId, releaseId)),
-                    retryFetch(() => fetchRelatedApps(fioriId, releaseId)),
-                    retryFetch(() => fetchSemanticObjects(fioriId, releaseId))
-                ]);
-
-                // Fetch semantic actions
-                const semanticActions = await retryFetch(() => fetchSemanticActions(fioriId, releaseId));
-
-                // Add to results
-                results.push({
-                    fioriId,
-                    status: 'Success',
-                    isDeprecated: appDetails.isPublished === 'Deprecated',
-                    appDetails,
-                    technicalNames,
-                    businessRoles,
-                    bspNames,
-                    technicalCatalogs,
-                    spaces,
-                    pages,
-                    relatedApps,
-                    semanticObjects,
-                    semanticActions
-                });
-
-                // Update processing results
-                updateProcessingResults(results);
-            } catch (error) {
-                results.push({
-                    fioriId,
-                    status: 'Error',
-                    error: error.message
-                });
-                updateProcessingResults(results);
-            }
-        }
-
-        // Generate Excel
-        generateExcel(results);
-
-        // Hide loading, show results and download button
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('results').style.display = 'block';
-        document.getElementById('downloadButton').style.display = 'block';
-    } catch (error) {
-        showError('Error processing apps: ' + error.message);
-        document.getElementById('loading').style.display = 'none';
-    }
-});
-
 function updateProcessingResults(results) {
     const container = document.getElementById('processingResults');
     container.innerHTML = '';
@@ -124,7 +26,7 @@ function updateProcessingResults(results) {
     });
 }
 
-function generateExcel(results) {
+function generateExcel(results, selectedFields) {
     // Create workbook
     const wb = XLSX.utils.book_new();
 
@@ -191,68 +93,74 @@ function generateExcel(results) {
                 }
             });
         }
-        const row = {
-            'Fiori ID': result.fioriId,
-            'App Title': result.appDetails.Title || result.appDetails.AppName,
-            'Application Type': result.appDetails.ApplicationType,
-            'UI Technology': result.appDetails.UITechnology,
-            'Application Component': result.appDetails.ApplicationComponent,
-            'BSP Name': bspNamesList.join('\n'),
-            'UI5 Component ID': result.appDetails.SAPUI5ComponentId,
-            'Business Roles': result.businessRoles.map(role => role.BusinessRoleName).join('\n'),
-            'OData Services': result.technicalNames.map(service => service.TechnicalName).join('\n'),
-            'Technical Catalogs': result.technicalCatalogs.map(catalog => catalog.TechincalCatalog).join('\n'),
-            'Spaces': result.spaces.map(space => space.SpaceName).join('\n'),
-            'Pages': result.pages.map(page => page.PageName).join('\n'),
-            'Related Apps': result.relatedApps.map(app => app.FioriId).join('\n'),
-            'Semantic Objects': result.semanticObjects.map(obj => obj.SemanticObject).join('\n'),
-            'Semantic Actions': result.semanticActions ? result.semanticActions.map(sa => `${sa.SemanticObject}:${sa.SemanticAction}`).join('\n') : ''
-        };
+        const row = {};
+        selectedFields.forEach(field => {
+            switch (field) {
+                case 'Fiori ID': row['Fiori ID'] = result.fioriId; break;
+                case 'App Title': row['App Title'] = result.appDetails.Title || result.appDetails.AppName; break;
+                case 'Application Type': row['Application Type'] = result.appDetails.ApplicationType; break;
+                case 'UI Technology': row['UI Technology'] = result.appDetails.UITechnology; break;
+                case 'Application Component': row['Application Component'] = result.appDetails.ApplicationComponent; break;
+                case 'BSP Name': row['BSP Name'] = bspNamesList.join('\n'); break;
+                case 'UI5 Component ID': row['UI5 Component ID'] = result.appDetails.SAPUI5ComponentId; break;
+                case 'Business Roles': row['Business Roles'] = result.businessRoles.map(role => role.BusinessRoleName).join('\n'); break;
+                case 'OData Services': row['OData Services'] = result.technicalNames.map(service => service.TechnicalName).join('\n'); break;
+                case 'Technical Catalogs': row['Technical Catalogs'] = result.technicalCatalogs.map(catalog => catalog.TechincalCatalog).join('\n'); break;
+                case 'Spaces': row['Spaces'] = result.spaces.map(space => space.SpaceName).join('\n'); break;
+                case 'Pages': row['Pages'] = result.pages.map(page => page.PageName).join('\n'); break;
+                case 'Related Apps': row['Related Apps'] = result.relatedApps.map(app => app.FioriId).join('\n'); break;
+                case 'Semantic Objects': row['Semantic Objects'] = result.semanticObjects.map(obj => obj.SemanticObject).join('\n'); break;
+                case 'Semantic Actions': row['Semantic Actions'] = result.semanticActions ? result.semanticActions.map(sa => `${sa.SemanticObject}:${sa.SemanticAction}`).join('\n') : ''; break;
+            }
+        });
         return row;
     });
 
-    // Add consolidated columns
-    excelData.push({
-        'Fiori ID': 'CONSOLIDATED',
-        'App Title': '',
-        'Application Type': '',
-        'UI Technology': '',
-        'Application Component': '',
-        'BSP Name': Array.from(uniqueBSPNames).sort().join('\n'),
-        'UI5 Component ID': '',
-        'Business Roles': Array.from(uniqueBusinessRoles).sort().join('\n'),
-        'OData Services': Array.from(uniqueODataServices).sort().join('\n'),
-        'Technical Catalogs': Array.from(uniqueTechnicalCatalogs).sort().join('\n'),
-        'Spaces': Array.from(uniqueSpaces).sort().join('\n'),
-        'Pages': Array.from(uniquePages).sort().join('\n'),
-        'Related Apps': Array.from(uniqueRelatedApps).sort().join('\n'),
-        'Semantic Objects': Array.from(uniqueSemanticObjects).sort().join('\n'),
-        'Semantic Actions': Array.from(uniqueSemanticActions).sort().join('\n')
+    // Add consolidated columns only for selected fields
+    const consolidatedRow = {};
+    selectedFields.forEach(field => {
+        switch (field) {
+            case 'Fiori ID': consolidatedRow['Fiori ID'] = 'CONSOLIDATED'; break;
+            case 'App Title': consolidatedRow['App Title'] = ''; break;
+            case 'Application Type': consolidatedRow['Application Type'] = ''; break;
+            case 'UI Technology': consolidatedRow['UI Technology'] = ''; break;
+            case 'Application Component': consolidatedRow['Application Component'] = ''; break;
+            case 'BSP Name': consolidatedRow['BSP Name'] = Array.from(uniqueBSPNames).sort().join('\n'); break;
+            case 'UI5 Component ID': consolidatedRow['UI5 Component ID'] = ''; break;
+            case 'Business Roles': consolidatedRow['Business Roles'] = Array.from(uniqueBusinessRoles).sort().join('\n'); break;
+            case 'OData Services': consolidatedRow['OData Services'] = Array.from(uniqueODataServices).sort().join('\n'); break;
+            case 'Technical Catalogs': consolidatedRow['Technical Catalogs'] = Array.from(uniqueTechnicalCatalogs).sort().join('\n'); break;
+            case 'Spaces': consolidatedRow['Spaces'] = Array.from(uniqueSpaces).sort().join('\n'); break;
+            case 'Pages': consolidatedRow['Pages'] = Array.from(uniquePages).sort().join('\n'); break;
+            case 'Related Apps': consolidatedRow['Related Apps'] = Array.from(uniqueRelatedApps).sort().join('\n'); break;
+            case 'Semantic Objects': consolidatedRow['Semantic Objects'] = Array.from(uniqueSemanticObjects).sort().join('\n'); break;
+            case 'Semantic Actions': consolidatedRow['Semantic Actions'] = Array.from(uniqueSemanticActions).sort().join('\n'); break;
+        }
     });
+    excelData.push(consolidatedRow);
 
     // Create the worksheet
     const ws = XLSX.utils.json_to_sheet(excelData);
 
-    // Set column widths
-    const colWidths = {
-        'A': 15, // Fiori ID
-        'B': 40, // App Title
-        'C': 20, // Application Type
-        'D': 20, // UI Technology
-        'E': 30, // Application Component
-        'F': 20, // BSP Name
-        'G': 30, // UI5 Component ID
-        'H': 40, // Business Roles
-        'I': 40, // OData Services
-        'J': 40, // Technical Catalogs
-        'K': 40, // Spaces
-        'L': 40, // Pages
-        'M': 40, // Related Apps
-        'N': 40,  // Semantic Objects
-        'O': 40   // Semantic Actions
+    // Set column widths only for selected fields
+    const colWidthsMap = {
+        'Fiori ID': 15,
+        'App Title': 40,
+        'Application Type': 20,
+        'UI Technology': 20,
+        'Application Component': 30,
+        'BSP Name': 20,
+        'UI5 Component ID': 30,
+        'Business Roles': 40,
+        'OData Services': 40,
+        'Technical Catalogs': 40,
+        'Spaces': 40,
+        'Pages': 40,
+        'Related Apps': 40,
+        'Semantic Objects': 40,
+        'Semantic Actions': 40
     };
-
-    ws['!cols'] = Object.values(colWidths).map(width => ({ wch: width }));
+    ws['!cols'] = selectedFields.map(field => ({ wch: colWidthsMap[field] || 20 }));
 
     // Add the worksheet to the workbook
     XLSX.utils.book_append_sheet(wb, ws, 'Fiori Apps Data');
@@ -262,16 +170,7 @@ function generateExcel(results) {
     XLSX.writeFile(wb, `Fiori_Apps_Data_${releaseId}.xlsx`);
 }
 
-// Add event listener for download button
-document.getElementById('downloadButton').addEventListener('click', function() {
-    const releaseId = document.getElementById('releaseId').value.trim();
-    const fioriIds = document.getElementById('fioriIds').value.trim().split(' ').filter(id => id.length > 0);
-    
-    // Trigger the fetch process again to generate fresh Excel
-    document.getElementById('fetchButton').click();
-});
-
-async function retryFetch(fetchFn, maxRetries = 3) {
+async function retryFetch(fetchFn, maxRetries = 1) {
     for (let i = 0; i < maxRetries; i++) {
         try {
             return await fetchFn();
@@ -897,19 +796,26 @@ document.getElementById('releaseId').addEventListener('input', function (e) {
 function handleEnterKey(event) {
     if (event.key === 'Enter') {
         event.preventDefault(); // Prevent default form submission
-        if (document.getElementById('fioriIds').value === '' ||
-            document.getElementById('releaseId').value === '') {
+
+        const releaseId = document.getElementById('releaseId').value.trim();
+        const fioriIds = document.getElementById('fioriIds').value.trim().split(' ').filter(id => id.length > 0);
+        const selectedFields = getSelectedFields();
+
+        if (fioriIds.length === 0 || !releaseId) {
             showError('Please enter both Fiori App IDs and Release ID');
             return;
         }
-
-        const fioriIds = document.getElementById('fioriIds').value.trim().split(' ');
-        const releaseId = document.getElementById('releaseId').value.trim();
+        if (selectedFields.length === 0) {
+            showError('Please select at least one field to include in the Excel');
+            return;
+        }
 
         // Only trigger fetch if both fields have values
-        if (fioriIds.length > 0 && releaseId) {
-            document.getElementById('fetchButton').click();
+        if (fioriIds.length > 0 && releaseId && selectedFields.length > 0) {
+            document.getElementById('customDownloadButton').click();
         }
+
+        
     }
 }
 
@@ -932,3 +838,111 @@ async function fetchSemanticActions(fioriId, releaseId) {
     }
     return [];
 }
+
+function getSelectedFields() {
+    const checkboxes = document.querySelectorAll('.excel-field');
+    return Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+}
+
+document.getElementById('customDownloadButton').addEventListener('click', async function() {
+    const releaseId = document.getElementById('releaseId').value.trim();
+    const fioriIds = document.getElementById('fioriIds').value.trim().split(' ').filter(id => id.length > 0);
+    const selectedFields = getSelectedFields();
+
+    if (fioriIds.length === 0 || !releaseId) {
+        showError('Please enter both Fiori App IDs and Release ID');
+        return;
+    }
+    if (selectedFields.length === 0) {
+        showError('Please select at least one field to include in the Excel');
+        return;
+    }
+
+    // Show loading, hide results and error
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('progressContainer').style.display = 'block';
+
+    try {
+        const results = [];
+        const totalApps = fioriIds.length;
+        let processedApps = 0;
+
+        for (const fioriId of fioriIds) {
+            try {
+                // Update progress
+                processedApps++;
+                const progress = (processedApps / totalApps) * 100;
+                document.getElementById('progressBar').style.width = `${progress}%`;
+                document.getElementById('progressText').textContent = `Processing: ${Math.round(progress)}%`;
+
+                // Fetch app details
+                const appDetails = await fetchAppDetails(fioriId, releaseId);
+                
+                // Fetch all data for the app
+                const [
+                    technicalNames,
+                    businessRoles,
+                    bspNames,
+                    technicalCatalogs,
+                    spaces,
+                    pages,
+                    relatedApps,
+                    semanticObjects
+                ] = await Promise.all([
+                    retryFetch(() => fetchTechnicalNames(fioriId, releaseId)),
+                    retryFetch(() => fetchBusinessRoleNames(fioriId, releaseId)),
+                    retryFetch(() => fetchBSPNames(fioriId, releaseId)),
+                    retryFetch(() => fetchTechnicalCatalogs(fioriId, releaseId)),
+                    retryFetch(() => fetchSpaces(fioriId, releaseId)),
+                    retryFetch(() => fetchPages(fioriId, releaseId)),
+                    retryFetch(() => fetchRelatedApps(fioriId, releaseId)),
+                    retryFetch(() => fetchSemanticObjects(fioriId, releaseId))
+                ]);
+
+                // Fetch semantic actions
+                const semanticActions = await retryFetch(() => fetchSemanticActions(fioriId, releaseId));
+
+                // Add to results
+                results.push({
+                    fioriId,
+                    status: 'Success',
+                    isDeprecated: appDetails.isPublished === 'Deprecated',
+                    appDetails,
+                    technicalNames,
+                    businessRoles,
+                    bspNames,
+                    technicalCatalogs,
+                    spaces,
+                    pages,
+                    relatedApps,
+                    semanticObjects,
+                    semanticActions
+                });
+
+                // Update processing results
+                updateProcessingResults(results);
+            } catch (error) {
+                results.push({
+                    fioriId,
+                    status: 'Error',
+                    error: error.message
+                });
+                updateProcessingResults(results);
+            }
+        }
+
+        // Generate Excel with selected fields
+        generateExcel(results, selectedFields);
+
+        // Hide loading, show results and download button
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('results').style.display = 'block';
+    } catch (error) {
+        showError('Error processing apps: ' + error.message);
+        document.getElementById('loading').style.display = 'none';
+    }
+});
