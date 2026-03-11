@@ -292,6 +292,31 @@
             transform: translateY(0);
         }
 
+        /* CHANGE 4: Deprecated download button style */
+        .deprecated-download-btn {
+            background-color: #e65100;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 16px;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-top: 10px;
+            display: none;
+            margin-left: 10px;
+        }
+
+        .deprecated-download-btn:hover {
+            background-color: #bf360c;
+            transform: translateY(-1px);
+        }
+
+        .deprecated-download-btn:active {
+            transform: translateY(0);
+        }
+
         .progress-container {
             margin-top: 20px;
             display: none;
@@ -326,34 +351,6 @@
         .error {
             color: #d32f2f;
             font-weight: 500;
-        }
-
-        .data-item {
-            border-left: 4px solid #0066cc;
-            margin-bottom: 15px;
-            background-color: #f8fbff;
-            padding: 12px 16px;
-            border-radius: 4px;
-            transition: box-shadow 0.2s;
-        }
-
-        .data-item:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        .data-item p {
-            margin: 6px 0;
-        }
-
-        .data-item strong {
-            color: #0066cc;
-            font-weight: 500;
-        }
-
-        .data-item-details {
-            font-size: 14px;
-            color: #666;
-            margin-top: 4px;
         }
 
         .useful-links {
@@ -398,6 +395,52 @@
             font-size: 14px;
             margin-left: 8px;
         }
+
+        /* CHANGE 2: Options panel styling */
+        .options-panel {
+            background-color: #f0f7ff;
+            border: 1px solid #cce0ff;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+
+        .options-panel-title {
+            font-weight: 600;
+            color: #0066cc;
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #444;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .option-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #0066cc;
+        }
+
+        .option-item .option-description {
+            color: #777;
+            font-size: 13px;
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 
@@ -412,6 +455,8 @@
             <label for="releaseId">Release ID:</label>
             <input type="text" id="releaseId" placeholder="e.g., S30PCE">
         </div>
+
+        <!-- Field Selection -->
         <div id="fieldSelection" style="margin-bottom: 1em; display: flex; flex-wrap: wrap; gap: 16px;">
             <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Fiori ID" checked> Fiori ID</label>
             <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="App Title" checked> App Title</label>
@@ -429,7 +474,25 @@
             <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Semantic Objects" checked> Semantic Objects</label>
             <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Semantic Actions" checked> Semantic Actions</label>
         </div>
-        <button id="customDownloadButton" class="download-btn" style="display: block; margin-bottom: 10px;">Download Excel (Selected Fields)</button>
+
+        <!-- CHANGE 2: Options panel for processing behaviour -->
+        <div class="options-panel">
+            <div class="options-panel-title">⚙️ Processing Options</div>
+            <label class="option-item">
+                <input type="checkbox" id="removeNoTargetMapping">
+                <span>
+                    Remove related apps with no target mappings
+                    <span class="option-description">(Related apps that have no semantic objects/intents will be excluded)</span>
+                </span>
+            </label>
+        </div>
+
+        <!-- Buttons row -->
+        <div class="button-row">
+            <button id="customDownloadButton" class="download-btn" style="display: block;">⬇️ Download Excel (Selected Fields)</button>
+            <!-- CHANGE 4: Deprecated download button (hidden until deprecated apps are found) -->
+            <button id="deprecatedDownloadButton" class="deprecated-download-btn">⬇️ Download Deprecated Apps</button>
+        </div>
 
         <div class="progress-container" id="progressContainer">
             <div class="progress-bar">
