@@ -1,536 +1,904 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fiori App Data Extractor</title>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1480820107091182"
-     crossorigin="anonymous"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1480820107091182" crossorigin="anonymous"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
+        /* ── Tokens ─────────────────────────────────────────────── */
+        :root {
+            --navy:      #0d1b2a;
+            --navy-mid:  #162336;
+            --teal:      #00b4d8;
+            --teal-dim:  #0096c7;
+            --teal-glow: rgba(0, 180, 216, 0.18);
+            --teal-soft: rgba(0, 180, 216, 0.08);
+            --white:     #ffffff;
+            --surface:   #f4f7fb;
+            --card:      #ffffff;
+            --border:    #e2e8f0;
+            --border-mid:#cbd5e1;
+            --text-1:    #0f172a;
+            --text-2:    #475569;
+            --text-3:    #94a3b8;
+            --success:   #10b981;
+            --success-bg:#ecfdf5;
+            --danger:    #ef4444;
+            --danger-bg: #fef2f2;
+            --warn:      #f59e0b;
+            --warn-bg:   #fffbeb;
+            --radius-sm: 6px;
+            --radius:    10px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+            --shadow:    0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+        }
+
+        /* ── Reset & base ────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
-            max-width: 900px;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--surface);
+            color: var(--text-1);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── Top bar ─────────────────────────────────────────────── */
+        .topbar {
+            background: var(--navy);
+            padding: 0 32px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 12px rgba(0,0,0,.25);
+        }
+
+        .topbar-logo {
+            width: 28px;
+            height: 28px;
+            background: var(--teal);
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .topbar-logo svg { width: 16px; height: 16px; fill: var(--navy); }
+
+        .topbar-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--white);
+            letter-spacing: -0.01em;
+        }
+
+        .topbar-subtitle {
+            font-size: 12px;
+            color: var(--teal);
+            font-weight: 500;
+            margin-left: 4px;
+            padding: 2px 8px;
+            background: var(--teal-glow);
+            border-radius: 20px;
+        }
+
+        /* ── Page layout ─────────────────────────────────────────── */
+        .page {
+            max-width: 1000px;
             margin: 0 auto;
-            padding: 25px;
-            background-color: #f7f9fc;
-            color: #333;
-            line-height: 1.5;
-        }
-
-        .container {
-            border: none;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            background-color: #fff;
-        }
-
-        h1 {
-            color: #0066cc;
-            margin-top: 0;
-            font-weight: 600;
-            margin-bottom: 25px;
-            font-size: 28px;
-        }
-
-        h2 {
-            color: #1a73e8;
-            font-weight: 500;
-            margin-top: 5px;
-            font-size: 22px;
-        }
-
-        h3 {
-            color: #444;
-            font-size: 18px;
-            font-weight: 500;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #555;
-            font-size: 15px;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 15px;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        input[type="text"]:focus {
-            border-color: #0066cc;
-            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
-            outline: none;
-        }
-
-        input[type="text"]::placeholder {
-            color: #aaa;
-        }
-
-        button {
-            background-color: #0066cc;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 16px;
-            transition: background-color 0.2s, transform 0.1s;
-        }
-
-        button:hover {
-            background-color: #0052a3;
-            transform: translateY(-1px);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        .results {
-            margin-top: 30px;
-            padding: 25px;
-            border-radius: 8px;
-            background-color: #fff;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            display: none;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            margin-top: 30px;
-            color: #555;
-            font-size: 16px;
-        }
-
-        .error {
-            color: #d32f2f;
-            margin-top: 15px;
-            display: none;
-            padding: 12px 16px;
-            background-color: #fdeaea;
-            border-radius: 6px;
-            border-left: 4px solid #d32f2f;
-            font-weight: 500;
-        }
-
-        .data-section {
-            margin-bottom: 30px;
-            position: relative;
-            padding: 5px;
-        }
-
-        .data-section h3 {
-            display: inline-block;
-            margin-right: 15px;
-            margin-bottom: 15px;
-        }
-
-        .copy-btn {
-            background-color: #43a047;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            vertical-align: middle;
-            transition: background-color 0.2s;
-        }
-
-        .copy-btn:hover {
-            background-color: #388e3c;
-        }
-
-        .copy-all {
-            display: inline-block;
-            margin-left: 10px;
-        }
-
-        .copy-success {
-            color: #388e3c;
-            font-size: 13px;
-            margin-left: 10px;
-            display: none;
-            font-weight: 500;
-        }
-
-        .data-item {
-            border-left: 4px solid #0066cc;
-            margin-bottom: 15px;
-            background-color: #f8fbff;
-            padding: 12px 16px;
-            border-radius: 4px;
-            transition: box-shadow 0.2s;
-        }
-
-        .data-item:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        .data-item p {
-            margin: 6px 0;
-        }
-
-        .data-item strong {
-            color: #0066cc;
-            font-weight: 500;
-        }
-
-        .data-item-details {
-            font-size: 14px;
-            color: #666;
-            margin-top: 4px;
-        }
-
-        .copy-text-area {
-            margin-top: 15px;
-            width: 100%;
-            padding: 12px;
-            background-color: #f9fafb;
-            border: 1px dashed #ccc;
-            border-radius: 6px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            white-space: pre;
-            max-height: 180px;
-            overflow-y: auto;
-            display: none;
-            color: #555;
-            font-size: 14px;
-        }
-
-        .app-info {
-            margin-top: 30px;
-            margin-bottom: 30px;
-            padding: 20px;
-            border-radius: 8px;
-            background-color: #f8fbff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-
-        .app-title {
-            font-size: 22px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: #0066cc;
-        }
-
-        .app-meta {
+            padding: 32px 24px 60px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 18px;
-            margin-bottom: 15px;
-            font-size: 14px;
+            flex-direction: column;
+            gap: 20px;
         }
 
-        .app-meta-item {
-            display: flex;
-            align-items: center;
-        }
-
-        .app-meta-label {
-            font-weight: 600;
-            margin-right: 6px;
-            color: #555;
-        }
-
-        .deprecated-warning {
-            background-color: #fff3f3;
-            border-left: 5px solid #f44336;
-            padding: 14px 18px;
-            margin-top: 15px;
-            margin-bottom: 15px;
-            font-weight: 500;
-            color: #d32f2f;
-            display: flex;
-            align-items: center;
-            border-radius: 4px;
-        }
-
-        .deprecated-icon {
-            margin-right: 12px;
-            font-size: 20px;
-        }
-
-        .app-info-section {
-            display: none;
-        }
-
-        .download-btn {
-            background-color: #43a047;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 16px;
-            transition: background-color 0.2s, transform 0.1s;
-            margin-top: 20px;
-            display: none;
-        }
-
-        .download-btn:hover {
-            background-color: #388e3c;
-            transform: translateY(-1px);
-        }
-
-        .download-btn:active {
-            transform: translateY(0);
-        }
-
-        /* CHANGE 4: Deprecated download button style */
-        .deprecated-download-btn {
-            background-color: #e65100;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 16px;
-            transition: background-color 0.2s, transform 0.1s;
-            margin-top: 10px;
-            display: none;
-            margin-left: 10px;
-        }
-
-        .deprecated-download-btn:hover {
-            background-color: #bf360c;
-            transform: translateY(-1px);
-        }
-
-        .deprecated-download-btn:active {
-            transform: translateY(0);
-        }
-
-        .progress-container {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background-color: #f0f0f0;
-            border-radius: 10px;
+        /* ── Cards ───────────────────────────────────────────────── */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
             overflow: hidden;
         }
 
-        .progress {
-            width: 0%;
-            height: 100%;
-            background-color: #0066cc;
-            transition: width 0.3s ease;
-        }
-
-        .progress-text {
-            margin-top: 5px;
-            font-size: 14px;
-            color: #666;
-        }
-
-        .success {
-            color: #43a047;
-            font-weight: 500;
-        }
-
-        .error {
-            color: #d32f2f;
-            font-weight: 500;
-        }
-
-        .useful-links {
-            margin-top: 40px;
-            padding: 25px;
-            border-radius: 8px;
-            background-color: #fff;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .useful-links h2 {
-            margin-bottom: 20px;
-        }
-
-        .link-item {
-            margin-bottom: 15px;
-            padding: 12px 16px;
-            background-color: #f8fbff;
-            border-radius: 6px;
-            transition: box-shadow 0.2s;
-        }
-
-        .link-item:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        .link-item a {
-            color: #0066cc;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 16px;
-            transition: color 0.2s;
-        }
-
-        .link-item a:hover {
-            color: #0052a3;
-            text-decoration: underline;
-        }
-
-        .link-description {
-            color: #666;
-            font-size: 14px;
-            margin-left: 8px;
-        }
-
-        /* CHANGE 2: Options panel styling */
-        .options-panel {
-            background-color: #f0f7ff;
-            border: 1px solid #cce0ff;
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin-bottom: 20px;
-        }
-
-        .options-panel-title {
-            font-weight: 600;
-            color: #0066cc;
-            margin-bottom: 12px;
-            font-size: 15px;
-        }
-
-        .option-item {
+        .card-header {
+            padding: 18px 24px 14px;
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+
+        .card-header-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--teal-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .card-header-text { flex: 1; }
+
+        .card-title {
             font-size: 14px;
-            color: #444;
+            font-weight: 600;
+            color: var(--text-1);
+            line-height: 1.3;
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            color: var(--text-3);
+            margin-top: 1px;
+        }
+
+        .card-step {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--teal);
+            color: var(--navy);
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .card-body { padding: 20px 24px; }
+
+        /* ── Form inputs ─────────────────────────────────────────── */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 260px;
+            gap: 16px;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            color: var(--text-1);
+            background: var(--white);
+            transition: border-color .15s, box-shadow .15s;
+            letter-spacing: 0.02em;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px var(--teal-glow);
+        }
+
+        .form-input::placeholder { color: var(--text-3); font-weight: 400; }
+
+        /* ── Field selector grid ─────────────────────────────────── */
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 8px;
+        }
+
+        .field-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid var(--border);
             cursor: pointer;
+            transition: border-color .15s, background .15s;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-2);
+            background: var(--white);
             user-select: none;
         }
 
-        .option-item input[type="checkbox"] {
+        .field-chip:hover { border-color: var(--teal); color: var(--text-1); }
+
+        .field-chip input[type="checkbox"] { display: none; }
+
+        .field-chip-dot {
             width: 16px;
             height: 16px;
-            cursor: pointer;
-            accent-color: #0066cc;
+            border-radius: 4px;
+            border: 1.5px solid var(--border-mid);
+            background: var(--white);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color .15s, background .15s;
         }
 
-        .option-item .option-description {
-            color: #777;
+        .field-chip-dot::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            background: var(--teal);
+            opacity: 0;
+            transition: opacity .15s;
+        }
+
+        .field-chip input:checked ~ .field-chip-dot {
+            border-color: var(--teal);
+            background: var(--teal-soft);
+        }
+
+        .field-chip input:checked ~ .field-chip-dot::after { opacity: 1; }
+
+        .field-chip:has(input:checked) {
+            border-color: var(--teal);
+            background: var(--teal-soft);
+            color: var(--text-1);
+        }
+
+        .field-chip-label { flex: 1; line-height: 1.3; }
+
+        /* ── Options toggle ──────────────────────────────────────── */
+        .option-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1.5px solid var(--border);
+            cursor: pointer;
+            transition: border-color .15s;
+        }
+
+        .option-row:hover { border-color: var(--teal); }
+
+        .option-row input[type="checkbox"] { display: none; }
+
+        .toggle-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 1.5px solid var(--border-mid);
+            background: var(--white);
+            flex-shrink: 0;
+            margin-top: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color .15s, background .15s;
+        }
+
+        .toggle-box::after {
+            content: '✓';
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--navy);
+            opacity: 0;
+            transition: opacity .15s;
+        }
+
+        .option-row:has(input:checked) .toggle-box {
+            background: var(--teal);
+            border-color: var(--teal);
+        }
+
+        .option-row:has(input:checked) .toggle-box::after { opacity: 1; }
+
+        .option-row:has(input:checked) { border-color: var(--teal); background: var(--teal-soft); }
+
+        .option-text { flex: 1; }
+        .option-label { font-size: 13.5px; font-weight: 600; color: var(--text-1); }
+        .option-desc { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+        /* ── Buttons ─────────────────────────────────────────────── */
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 11px 20px;
+            border-radius: var(--radius);
+            border: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter .15s, transform .1s, box-shadow .15s;
+        }
+
+        .btn:hover { filter: brightness(1.07); transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); filter: brightness(.97); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dim) 100%);
+            color: var(--navy);
+            box-shadow: 0 2px 10px rgba(0, 180, 216, 0.35);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+            display: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #fff;
+        }
+
+        .btn-warn {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3);
+            display: none;
+        }
+
+        .btn-sm {
+            padding: 7px 14px;
             font-size: 13px;
         }
 
-        .button-row {
+        .btn-icon { font-size: 15px; }
+
+        /* ── Progress ────────────────────────────────────────────── */
+        .progress-wrap {
+            display: none;
+            margin-top: 4px;
+        }
+
+        .progress-track {
+            height: 6px;
+            background: var(--border);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, var(--teal) 0%, #48cae4 100%);
+            box-shadow: 0 0 8px var(--teal-glow);
+            transition: width .3s ease;
+        }
+
+        .progress-meta {
             display: flex;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 6px;
+        }
+
+        .progress-label { font-size: 12.5px; color: var(--text-2); font-weight: 500; }
+
+        /* ── Toast / error ───────────────────────────────────────── */
+        .toast {
+            display: none;
             align-items: center;
             gap: 10px;
-            margin-top: 10px;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            font-size: 13.5px;
+            font-weight: 500;
+            border-left: 3px solid var(--danger);
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        /* ── Processing results ──────────────────────────────────── */
+        .results-panel {
+            display: none;
+        }
+
+        .result-items { display: flex; flex-direction: column; gap: 6px; }
+
+        .result-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            font-size: 13px;
+            animation: fadeSlideIn .2s ease both;
+        }
+
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-item-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-1);
+            min-width: 100px;
+        }
+
+        .result-item-badges { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-success { background: var(--success-bg); color: var(--success); }
+        .badge-error   { background: var(--danger-bg);  color: var(--danger); }
+        .badge-warn    { background: var(--warn-bg);     color: #92400e; }
+        .badge-related { background: #f1f5f9; color: var(--text-2); }
+        .badge-original{ background: var(--teal-soft); color: var(--teal-dim); }
+
+        .result-item-error { font-size: 12px; color: var(--danger); margin-top: 2px; }
+
+        /* ── Preview table ───────────────────────────────────────── */
+        .preview-panel { display: none; }
+
+        .preview-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 18px 24px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .preview-topbar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-count-badge {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: var(--teal-soft);
+            color: var(--teal-dim);
+            border: 1px solid rgba(0, 180, 216, 0.2);
+        }
+
+        .preview-table-wrap {
+            overflow: auto;
+            max-height: 560px;
+        }
+
+        table.ptable {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            min-width: 640px;
+            font-size: 13px;
+        }
+
+        table.ptable th {
+            background: #f8fafc;
+            color: var(--text-2);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+            padding: 10px 14px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        table.ptable th:first-child,
+        table.ptable td:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 1;
+        }
+
+        table.ptable th:first-child { z-index: 3; }
+
+        table.ptable td {
+            padding: 11px 14px;
+            vertical-align: top;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: pre-line;
+            line-height: 1.55;
+        }
+
+        table.ptable td:first-child {
+            background: var(--white);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--navy);
+            position: sticky;
+            left: 0;
+        }
+
+        table.ptable tr:hover td { background: #f8fafc; }
+        table.ptable tr:hover td:first-child { background: #eef6fb; }
+        table.ptable tr:last-child td { border-bottom: none; }
+
+        .td-original { border-left: 3px solid var(--teal); }
+        .td-related  { border-left: 3px solid var(--border-mid); }
+
+        .app-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 600;
+        }
+        .app-badge.original { background: var(--teal-soft); color: var(--teal-dim); border: 1px solid rgba(0,180,216,.2); }
+        .app-badge.related  { background: #f1f5f9; color: var(--text-2); border: 1px solid var(--border); }
+
+        .tag-list { display: flex; flex-direction: column; gap: 3px; }
+        .tag {
+            display: inline-block;
+            background: #f0f9ff;
+            color: #0369a1;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+            width: fit-content;
+            max-width: 260px;
+            word-break: break-word;
+        }
+
+        .empty-cell { color: var(--text-3); }
+
+        /* Consolidated row */
+        table.ptable tr.cons-row td {
+            background: #fffbeb;
+            border-top: 2px solid #fde68a;
+            border-bottom: none;
+        }
+        table.ptable tr.cons-row td:first-child { background: #fef3c7; color: #92400e; }
+        table.ptable tr.cons-row .tag { background: #fef3c7; color: #92400e; }
+        table.ptable tr.cons-row:hover td { background: #fffbeb; }
+        table.ptable tr.cons-row:hover td:first-child { background: #fef3c7; }
+
+        /* ── Useful links ────────────────────────────────────────── */
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .link-card {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 14px 16px;
+            border-radius: var(--radius);
+            border: 1.5px solid var(--border);
+            background: var(--white);
+            text-decoration: none;
+            transition: border-color .15s, box-shadow .15s, transform .1s;
+        }
+
+        .link-card:hover {
+            border-color: var(--teal);
+            box-shadow: var(--shadow-sm);
+            transform: translateY(-1px);
+        }
+
+        .link-card-title { font-size: 13.5px; font-weight: 600; color: var(--text-1); }
+        .link-card-desc  { font-size: 12px; color: var(--text-3); }
+
+        /* ── Section label ───────────────────────────────────────── */
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--text-3);
+            padding: 0 2px;
+        }
+
+        /* ── Misc ─────────────────────────────────────────────────── */
+        .loading-state {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            font-size: 13.5px;
+            color: var(--text-2);
+            padding: 4px 0;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid var(--teal-glow);
+            border-top-color: var(--teal);
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h1>Fiori App Data Extractor</h1>
-        <div class="form-group">
-            <label for="fioriIds">Fiori App IDs (space separated):</label>
-            <input type="text" id="fioriIds" placeholder="e.g., F1048 F1049 F1050">
+    <!-- Top bar -->
+    <header class="topbar">
+        <div class="topbar-logo">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         </div>
-        <div class="form-group">
-            <label for="releaseId">Release ID:</label>
-            <input type="text" id="releaseId" placeholder="e.g., S30PCE">
-        </div>
+        <span class="topbar-title">Fiori App Data Extractor</span>
+        <span class="topbar-subtitle">SAP Tool</span>
+    </header>
 
-        <!-- Field Selection -->
-        <div id="fieldSelection" style="margin-bottom: 1em; display: flex; flex-wrap: wrap; gap: 16px;">
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Fiori ID" checked> Fiori ID</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="App Title" checked> App Title</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Application Type" checked> Application Type</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="UI Technology" checked> UI Technology</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Application Component" checked> Application Component</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="BSP Name" checked> BSP Name(Technical Name)</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="UI5 Component ID" checked> UI5 Component ID</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Business Roles" checked> Business Roles</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="OData Services" checked> OData Services</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Technical Catalogs" checked> Technical Catalogs</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Spaces" checked> Spaces</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Pages" checked> Pages</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Related Apps" checked> Related Apps</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Semantic Objects" checked> Semantic Objects</label>
-            <label style="margin-right: 12px;"><input type="checkbox" class="excel-field" value="Semantic Actions" checked> Semantic Actions</label>
-        </div>
+    <main class="page">
 
-        <!-- CHANGE 2: Options panel for processing behaviour -->
-        <div class="options-panel">
-            <div class="options-panel-title">⚙️ Processing Options</div>
-            <label class="option-item">
-                <input type="checkbox" id="removeNoTargetMapping">
-                <span>
-                    Remove related apps with no target mappings
-                    <span class="option-description">(Related apps that have no semantic objects/intents will be excluded)</span>
-                </span>
-            </label>
-        </div>
-
-        <!-- Buttons row -->
-        <div class="button-row">
-            <button id="customDownloadButton" class="download-btn" style="display: block;">⬇️ Download Excel (Selected Fields)</button>
-            <!-- CHANGE 4: Deprecated download button (hidden until deprecated apps are found) -->
-            <button id="deprecatedDownloadButton" class="deprecated-download-btn">⬇️ Download Deprecated Apps</button>
-        </div>
-
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-bar">
-                <div class="progress" id="progressBar"></div>
+        <!-- ① App Input -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-step">1</div>
+                <div class="card-header-text">
+                    <div class="card-title">App Identifiers</div>
+                    <div class="card-subtitle">Enter the Fiori IDs and target release to look up</div>
+                </div>
             </div>
-            <div class="progress-text" id="progressText">Processing: 0%</div>
-            <div class="cancel-button-container">
-                <button id="cancelButton" class="cancel-button" style="background-color: #dc3545; margin-top: 15px;">Cancel Operation</button>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="fioriIds">Fiori App IDs</label>
+                        <input class="form-input" type="text" id="fioriIds" placeholder="F1048 F1049 F1050">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="releaseId">Release ID</label>
+                        <input class="form-input" type="text" id="releaseId" placeholder="S30PCE">
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="loading" id="loading">
-            <p>Loading data, please wait...</p>
-        </div>
-
-        <div class="error" id="error"></div>
-
-        <div class="results" id="results">
-            <h2>Processing Results</h2>
-            <div id="processingResults"></div>
-        </div>
-
-        <div class="useful-links">
-            <h2>Useful Tools</h2>
-            <div class="link-item">
-                <a href="https://comparetwolists.com/" target="_blank" rel="noopener noreferrer">Compare Two Lists</a>
-                <span class="link-description">- Compare and find differences between two lists</span>
+        <!-- ② Field Selection -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-step">2</div>
+                <div class="card-header-text">
+                    <div class="card-title">Output Fields</div>
+                    <div class="card-subtitle">Choose what data to include in the preview and Excel export</div>
+                </div>
             </div>
-            <div class="link-item">
-                <a href="https://dedupelist.com/#startresults" target="_blank" rel="noopener noreferrer">Remove Duplicates</a>
-                <span class="link-description">- Remove duplicate entries from your list</span>
+            <div class="card-body">
+                <div class="field-grid" id="fieldSelection">
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Fiori ID" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Fiori ID</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="App Title" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">App Title</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Application Type" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Application Type</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="UI Technology" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">UI Technology</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Application Component" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Application Component</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="BSP Name" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">BSP Name</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="UI5 Component ID" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">UI5 Component ID</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Business Roles" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Business Roles</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="OData Services" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">OData Services</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Technical Catalogs" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Technical Catalogs</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Spaces" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Spaces</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Pages" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Pages</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Related Apps" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Related Apps</span>
+                    </label>
+                    <label class="field-chip">
+                        <input type="checkbox" class="excel-field" value="Semantic Actions" checked>
+                        <span class="field-chip-dot"></span>
+                        <span class="field-chip-label">Semantic Objects:Actions</span>
+                    </label>
+                </div>
             </div>
         </div>
-    </div>
+
+        <!-- ③ Options + Actions -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-step">3</div>
+                <div class="card-header-text">
+                    <div class="card-title">Options &amp; Run</div>
+                    <div class="card-subtitle">Configure filtering rules, then extract the data</div>
+                </div>
+            </div>
+            <div class="card-body" style="display:flex; flex-direction:column; gap:16px;">
+                <label class="option-row">
+                    <input type="checkbox" id="removeNoTargetMapping">
+                    <span class="toggle-box"></span>
+                    <span class="option-text">
+                        <span class="option-label">Exclude related apps with no target mappings</span>
+                        <span class="option-desc">Related apps without semantic objects/intents will be skipped. If Technical Catalogs is also selected, apps with only semantic data and no catalogs are excluded too.</span>
+                    </span>
+                </label>
+
+                <div class="btn-row">
+                    <button id="processButton" class="btn btn-primary">
+                        <span class="btn-icon">⚡</span> Extract &amp; Preview
+                    </button>
+                    <button id="customDownloadButton" class="btn btn-success">
+                        <span class="btn-icon">↓</span> Download Excel
+                    </button>
+                    <button id="deprecatedDownloadButton" class="btn btn-warn">
+                        <span class="btn-icon">⚠</span> Download Deprecated
+                    </button>
+                </div>
+
+                <!-- Progress -->
+                <div class="progress-wrap" id="progressContainer">
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressBar"></div>
+                    </div>
+                    <div class="progress-meta">
+                        <span class="progress-label" id="progressText">Starting…</span>
+                        <button id="cancelButton" class="btn btn-danger btn-sm">✕ Cancel</button>
+                    </div>
+                </div>
+
+                <div class="loading-state" id="loading">
+                    <div class="spinner"></div>
+                    <span>Fetching data from Fiori Apps Library…</span>
+                </div>
+
+                <div class="toast" id="error"></div>
+            </div>
+        </div>
+
+        <!-- Processing results -->
+        <div class="card results-panel" id="results">
+            <div class="card-header">
+                <div class="card-header-icon">📋</div>
+                <div class="card-header-text">
+                    <div class="card-title">Processing Results</div>
+                    <div class="card-subtitle">Status of each app fetched (including discovered related apps)</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="result-items" id="processingResults"></div>
+            </div>
+        </div>
+
+        <!-- Data preview -->
+        <div class="card preview-panel" id="previewContainer">
+            <div class="preview-topbar">
+                <div class="preview-topbar-title">
+                    📊 Data Preview
+                    <span class="preview-count-badge" id="previewSummary"></span>
+                </div>
+            </div>
+            <div class="preview-table-wrap">
+                <table class="ptable" id="previewTable">
+                    <thead id="previewTableHead"></thead>
+                    <tbody id="previewTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Useful links -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-header-icon">🔗</div>
+                <div class="card-header-text">
+                    <div class="card-title">Useful Tools</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="links-grid">
+                    <a class="link-card" href="https://comparetwolists.com/" target="_blank" rel="noopener noreferrer">
+                        <span class="link-card-title">↔ Compare Two Lists</span>
+                        <span class="link-card-desc">Find differences between two lists</span>
+                    </a>
+                    <a class="link-card" href="https://dedupelist.com/#startresults" target="_blank" rel="noopener noreferrer">
+                        <span class="link-card-title">✦ Remove Duplicates</span>
+                        <span class="link-card-desc">Remove duplicate entries from a list</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </main>
 
     <script src="script.js"></script>
 </body>
-
 </html>
