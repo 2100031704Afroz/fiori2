@@ -86,6 +86,23 @@ async function hasTargetMappings(fioriId, releaseId) {
     }
 }
 
+// --- NEW: Check if an app has semantic objects/actions but NO technical catalogs ---
+// Used to additionally exclude related apps that only carry semantic object/action
+// mappings without belonging to any technical catalog.
+async function hasOnlyTargetMappingsWithoutCatalogs(fioriId, releaseId) {
+    try {
+        const [semanticData, catalogData] = await Promise.all([
+            fetchFromAPI('SplitAdditionalIntents', fioriId, releaseId),
+            fetchFromAPI('SplitTechnicalCatalogs', fioriId, releaseId)
+        ]);
+        const hasSemanticData = semanticData && semanticData.length > 0;
+        const hasCatalogs = catalogData && catalogData.length > 0;
+        return hasSemanticData && !hasCatalogs;
+    } catch (e) {
+        return false;
+    }
+}
+
 // --- Retry Utility ---
 async function retryFetch(fetchFn, maxRetries = 1) {
     for (let i = 0; i < maxRetries; i++) {
@@ -104,7 +121,7 @@ async function retryFetch(fetchFn, maxRetries = 1) {
 function showError(message) {
     const errorElement = document.getElementById('error');
     errorElement.textContent = message;
-    errorElement.style.display = 'block';
+    errorElement.style.display = 'flex';
     setTimeout(() => { errorElement.style.display = 'none'; }, 5000);
 }
 
@@ -227,24 +244,18 @@ function updateProcessingResults(results) {
     container.innerHTML = '';
     results.forEach(result => {
         const div = document.createElement('div');
-        div.className = 'data-item';
-        let statusClass = result.status === 'Success' ? 'success' : 'error';
-        let statusText = result.status === 'Success' ?
-            (result.isDeprecated ? 'Success (Deprecated)' : 'Success') : 'Error';
-        let originIndicator = result.isOriginalRequest ? ' 🎯' : '';
-        let html = `<p><strong>${result.fioriId}${originIndicator}</strong> - <span class="${statusClass}">${statusText}</span></p>`;
-        if (result.status === 'Error') {
-            html += `<p class="data-item-details">Error: ${result.error}</p>`;
-        } else if (result.isDeprecated) {
-            html += `<p class="data-item-details">⚠️ This application is deprecated in the selected release</p>`;
-        }
-        if (result.removedAsNoTargetMapping) {
-            html += `<p class="data-item-details">🚫 Removed from related apps: no target mappings</p>`;
-        }
-        if (!result.isOriginalRequest) {
-            html += `<p class="data-item-details">📎 Discovered as related app</p>`;
-        }
-        div.innerHTML = html;
+        div.className = 'result-item';
+        const isSuccess = result.status === 'Success';
+        const isDeprecated = result.isDeprecated;
+        let badges = '';
+        if (isSuccess && !isDeprecated) badges += '<span class="badge badge-success">✓ Success</span>';
+        if (isSuccess && isDeprecated)  badges += '<span class="badge badge-warn">⚠ Deprecated</span>';
+        if (!isSuccess)                 badges += '<span class="badge badge-error">✕ Error</span>';
+        if (result.isOriginalRequest)   badges += '<span class="badge badge-original">Original</span>';
+        else                            badges += '<span class="badge badge-related">Related</span>';
+        let errorLine = '';
+        if (!isSuccess) errorLine = '<div class="result-item-error">' + result.error + '</div>';
+        div.innerHTML = '<span class="result-item-id">' + result.fioriId + '</span><div class="result-item-badges">' + badges + '</div>' + errorLine;
         container.appendChild(div);
     });
 }
@@ -298,7 +309,7 @@ function handleEnterKey(event) {
         const selectedFields = getSelectedFields();
         if (fioriIds.length === 0 || !releaseId) { showError('Please enter both Fiori App IDs and Release ID'); return; }
         if (selectedFields.length === 0) { showError('Please select at least one field to include in the Excel'); return; }
-        document.getElementById('customDownloadButton').click();
+        document.getElementById('processButton').click();
     }
 }
 
@@ -372,40 +383,36 @@ async function fetchAppDataSelective(fioriId, releaseId, selectedFields) {
     const pages = selectedFields.includes('Pages')
         ? await retryFetch(() => fetchPages(fioriId, releaseId)) : [];
 
-    // Semantic Objects and Semantic Actions share the same endpoint (SplitAdditionalIntents)
-    // Fetch only once if either is selected, or if we need target mapping check
+    // Semantic Objects:Semantic Actions share the same endpoint (SplitAdditionalIntents)
+    // Combined into a single field/checkbox now
     let semanticObjects = [];
     let semanticActions = [];
-    const needSemanticData = selectedFields.includes('Semantic Objects') || selectedFields.includes('Semantic Actions');
+    const needSemanticData = selectedFields.includes('Semantic Actions');
     if (needSemanticData) {
         const rawSemanticData = await retryFetch(() => fetchFromAPI('SplitAdditionalIntents', fioriId, releaseId));
-        if (selectedFields.includes('Semantic Objects')) {
-            semanticObjects = rawSemanticData;
-        }
-        if (selectedFields.includes('Semantic Actions')) {
-            semanticActions = rawSemanticData.map(item => ({
-                SemanticObject: item.SemanticObject,
-                SemanticAction: item.SemanticAction
-            }));
-        }
+        semanticObjects = rawSemanticData;
+        semanticActions = rawSemanticData.map(item => ({
+            SemanticObject: item.SemanticObject,
+            SemanticAction: item.SemanticAction
+        }));
     }
 
     return { appDetails, relatedApps, technicalNames, businessRoles, bspNames, technicalCatalogs, spaces, pages, semanticObjects, semanticActions };
 }
 
 // =========================================================
-// Excel Generation (shared between main and deprecated downloads)
+// NEW: Shared row-building logic
+// Extracted from buildExcelWorkbook so both the Excel export
+// and the on-screen preview table use identical data/columns.
 // =========================================================
-function buildExcelWorkbook(validResults, selectedFields, originalFioriIds) {
-    const wb = XLSX.utils.book_new();
-
+function buildExcelRows(validResults, selectedFields, originalFioriIds) {
     if (validResults.length === 0) return null;
 
     // Gather unique sets
     const uniqueSets = {
         businessRoles: new Set(), odataServices: new Set(), technicalCatalogs: new Set(),
         bspNames: new Set(), spaces: new Set(), pages: new Set(),
-        relatedApps: new Set(), semanticObjects: new Set(), semanticActions: new Set()
+        relatedApps: new Set(), semanticActions: new Set()
     };
 
     validResults.forEach(result => {
@@ -417,9 +424,6 @@ function buildExcelWorkbook(validResults, selectedFields, originalFioriIds) {
         result.spaces.forEach(space => uniqueSets.spaces.add(space.SpaceName));
         result.pages.forEach(page => uniqueSets.pages.add(page.PageName));
         result.relatedApps.forEach(app => uniqueSets.relatedApps.add(app.FioriId));
-        result.semanticObjects.forEach(obj => {
-            uniqueSets.semanticObjects.add(obj.SemanticObject);
-        });
         if (result.semanticActions) {
             result.semanticActions.forEach(sa => {
                 if (sa.SemanticObject && sa.SemanticAction)
@@ -459,7 +463,6 @@ function buildExcelWorkbook(validResults, selectedFields, originalFioriIds) {
                     case 'Spaces': row[field] = result.spaces.map(s => s.SpaceName).join('\n'); break;
                     case 'Pages': row[field] = result.pages.map(p => p.PageName).join('\n'); break;
                     case 'Related Apps': row[field] = result.relatedApps.map(a => a.FioriId).join('\n'); break;
-                    case 'Semantic Objects': row[field] = result.semanticObjects.map(o => o.SemanticObject).join('\n'); break;
                     case 'Semantic Actions': row[field] = result.semanticActions ? result.semanticActions.map(sa => `${sa.SemanticObject}:${sa.SemanticAction}`).join('\n') : ''; break;
                     default: row[field] = '';
                 }
@@ -481,24 +484,127 @@ function buildExcelWorkbook(validResults, selectedFields, originalFioriIds) {
             case 'Spaces': consolidatedRow[field] = Array.from(uniqueSets.spaces).sort().join('\n'); break;
             case 'Pages': consolidatedRow[field] = Array.from(uniqueSets.pages).sort().join('\n'); break;
             case 'Related Apps': consolidatedRow[field] = Array.from(uniqueSets.relatedApps).sort().join('\n'); break;
-            case 'Semantic Objects': consolidatedRow[field] = Array.from(uniqueSets.semanticObjects).sort().join('\n'); break;
             case 'Semantic Actions': consolidatedRow[field] = Array.from(uniqueSets.semanticActions).sort().join('\n'); break;
             default: consolidatedRow[field] = '';
         }
     });
-    excelData.push(consolidatedRow);
 
-    const ws = XLSX.utils.json_to_sheet(excelData);
+    return { allFields, excelData, consolidatedRow };
+}
+
+// =========================================================
+// Excel Generation (shared between main and deprecated downloads)
+// Now consumes buildExcelRows() so preview and Excel always match
+// =========================================================
+function buildExcelWorkbook(validResults, selectedFields, originalFioriIds) {
+    if (validResults.length === 0) return null;
+
+    const built = buildExcelRows(validResults, selectedFields, originalFioriIds);
+    if (!built) return null;
+    const { allFields, excelData, consolidatedRow } = built;
+
+    const fullData = [...excelData, consolidatedRow];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(fullData);
     const colWidthsMap = {
         'Fiori ID': 15, 'App Title': 40, 'Application Type': 20, 'UI Technology': 20,
         'Application Component': 30, 'BSP Name': 20, 'UI5 Component ID': 30,
         'Business Roles': 40, 'OData Services': 40, 'Technical Catalogs': 40,
         'App Type': 10, 'Spaces': 40, 'Pages': 40, 'Related Apps': 40,
-        'Semantic Objects': 40, 'Semantic Actions': 40
+        'Semantic Actions': 50
     };
     ws['!cols'] = allFields.map(field => ({ wch: colWidthsMap[field] || 20 }));
     XLSX.utils.book_append_sheet(wb, ws, 'Fiori Apps Data');
     return wb;
+}
+
+// =========================================================
+// NEW: Render the on-screen preview table
+// Uses the same buildExcelRows() output as the Excel export
+// =========================================================
+function renderPreviewTable(validResults, selectedFields, originalFioriIds) {
+    const previewContainer = document.getElementById('previewContainer');
+    const theadEl = document.getElementById('previewTableHead');
+    const tbodyEl = document.getElementById('previewTableBody');
+    const summaryEl = document.getElementById('previewSummary');
+
+    if (!previewContainer || !theadEl || !tbodyEl) return;
+
+    if (!validResults || validResults.length === 0) {
+        previewContainer.style.display = 'none';
+        return;
+    }
+
+    const built = buildExcelRows(validResults, selectedFields, originalFioriIds);
+    if (!built) {
+        previewContainer.style.display = 'none';
+        return;
+    }
+    const { allFields, excelData, consolidatedRow } = built;
+
+    // Build header
+    theadEl.innerHTML = '';
+    const headerRow = document.createElement('tr');
+    allFields.forEach(field => {
+        const th = document.createElement('th');
+        th.textContent = field;
+        headerRow.appendChild(th);
+    });
+    theadEl.appendChild(headerRow);
+
+    const escapeHtml = str => String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    const renderCell = (field, value) => {
+        if (field === 'App Type') {
+            const isOrig = value === 'Original' || value === '✓';
+            return '<span class="app-badge ' + (isOrig ? 'original' : 'related') + '">' + (isOrig ? 'Original' : 'Related') + '</span>';
+        }
+        const text = String(value ?? '').trim();
+        if (!text || text === '-') return '<span class="empty-cell">—</span>';
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length > 1) {
+            return '<div class="tag-list">' + lines.map(l => '<span class="tag">' + escapeHtml(l) + '</span>').join('') + '</div>';
+        }
+        return escapeHtml(lines[0] || '');
+    };
+
+    tbodyEl.innerHTML = '';
+    let originalCount = 0, relatedCount = 0;
+
+    excelData.forEach(row => {
+        const tr = document.createElement('tr');
+        const isOriginal = row['App Type'] === '✓';
+        if (isOriginal) originalCount++; else relatedCount++;
+
+        allFields.forEach((field, idx) => {
+            const td = document.createElement('td');
+            if (idx === 0) td.classList.add(isOriginal ? 'td-original' : 'td-related');
+            td.innerHTML = renderCell(field, row[field]);
+            tr.appendChild(td);
+        });
+        tbodyEl.appendChild(tr);
+    });
+
+    // Consolidated row
+    const consTr = document.createElement('tr');
+    consTr.className = 'cons-row';
+    allFields.forEach(field => {
+        const td = document.createElement('td');
+        td.innerHTML = renderCell(field, consolidatedRow[field]);
+        consTr.appendChild(td);
+    });
+    tbodyEl.appendChild(consTr);
+
+    if (summaryEl) {
+        const total = originalCount + relatedCount;
+        summaryEl.innerHTML = total + ' app' + (total === 1 ? '' : 's') + ' &middot; ' + originalCount + ' original &middot; ' + relatedCount + ' related';
+    }
+
+    previewContainer.style.display = 'block';
 }
 
 // --- Main Excel Generation (active/non-deprecated apps) ---
@@ -532,6 +638,10 @@ let _globalSelectedFields = [];
 let _globalOriginalFioriIds = new Set();
 let _globalReleaseId = '';
 
+// NEW: Globals for the main (non-deprecated) results, used by the
+// "Download Excel" button so it just exports already-fetched data.
+let _globalMainResults = [];
+
 function generateDeprecatedExcel() {
     if (_globalDeprecatedResults.length === 0) {
         showError('No deprecated apps found to download');
@@ -558,10 +668,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// NEW: Setup main "Download Excel" button
+// This now only exports the already-fetched/processed data (no re-fetching).
+document.addEventListener('DOMContentLoaded', () => {
+    const downloadBtn = document.getElementById('customDownloadButton');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+            if (_globalMainResults.length === 0) {
+                showError('No data available. Please click "Extract & Preview Data" first.');
+                return;
+            }
+            generateExcel(_globalMainResults, _globalSelectedFields, _globalOriginalFioriIds);
+        });
+    }
+});
+
 // =========================================================
 // Main Button Handler
+// NOTE: Renamed from "customDownloadButton" click handler to
+// "processButton" click handler. This now ONLY fetches/processes
+// data and renders the preview table + processing results.
+// It does NOT trigger an Excel download. The separate
+// "Download Excel" button (above) handles the download using the
+// already-fetched data stored in the globals below.
 // =========================================================
-document.getElementById('customDownloadButton').addEventListener('click', async function () {
+document.getElementById('processButton').addEventListener('click', async function () {
     isOperationCancelled = false;
 
     const releaseId = document.getElementById('releaseId').value.trim();
@@ -583,16 +714,22 @@ document.getElementById('customDownloadButton').addEventListener('click', async 
     const progressBar = document.getElementById('progressBar');
     const progressText = document.getElementById('progressText');
 
-    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').style.display = 'flex';
     document.getElementById('results').style.display = 'none';
     document.getElementById('error').style.display = 'none';
     document.getElementById('progressContainer').style.display = 'block';
     progressBar.style.width = '0%';
     progressText.textContent = 'Starting...';
 
-    // Hide deprecated button while processing
+    // Hide download buttons while processing
     const depBtn = document.getElementById('deprecatedDownloadButton');
     if (depBtn) depBtn.style.display = 'none';
+    const downloadBtn = document.getElementById('customDownloadButton');
+    if (downloadBtn) downloadBtn.style.display = 'none';
+
+    // Hide previous preview while processing
+    const previewContainer = document.getElementById('previewContainer');
+    if (previewContainer) previewContainer.style.display = 'none';
 
     try {
         const results = [];
@@ -622,6 +759,7 @@ document.getElementById('customDownloadButton').addEventListener('click', async 
                 } = await fetchAppDataSelective(fioriId, releaseId, selectedFields);
 
                 // CHANGE 2: For related apps, optionally filter out those with no target mappings
+                const includeTechnicalCatalogs = selectedFields.includes('Technical Catalogs');
                 const filteredRelatedApps = [];
                 for (const relatedApp of relatedApps) {
                     const relatedFioriId = relatedApp.FioriId;
@@ -629,11 +767,21 @@ document.getElementById('customDownloadButton').addEventListener('click', async 
                         if (removeNoTargetMapping && !originalApps.has(relatedFioriId)) {
                             // Check if it has target mappings before queuing
                             const hasMappings = await hasTargetMappings(relatedFioriId, releaseId);
-                            if (hasMappings) {
-                                filteredRelatedApps.push(relatedApp);
-                                queuedApps.push(relatedFioriId);
+                            if (!hasMappings) {
+                                // no target mappings — skip
+                                continue;
                             }
-                            // else skip — no target mappings
+                            // Additionally, if Technical Catalogs is selected, exclude apps
+                            // that have semantic objects/actions but no technical catalogs
+                            if (includeTechnicalCatalogs) {
+                                const onlySemanticNoCatalog = await hasOnlyTargetMappingsWithoutCatalogs(relatedFioriId, releaseId);
+                                if (onlySemanticNoCatalog) {
+                                    // has semantic objects/actions but no technical catalogs — skip
+                                    continue;
+                                }
+                            }
+                            filteredRelatedApps.push(relatedApp);
+                            queuedApps.push(relatedFioriId);
                         } else {
                             filteredRelatedApps.push(relatedApp);
                             queuedApps.push(relatedFioriId);
@@ -681,19 +829,28 @@ document.getElementById('customDownloadButton').addEventListener('click', async 
                 r.status === 'Success' && r.isDeprecated && originalApps.has(r.fioriId)
             );
 
-            // Store deprecated data globally for the download button
+            // Store deprecated data globally for the deprecated download button
             _globalDeprecatedResults = deprecatedOriginalResults;
             _globalSelectedFields = [...selectedFields];
             _globalOriginalFioriIds = new Set(originalApps);
             _globalReleaseId = releaseId;
 
-            // Generate main Excel (excludes deprecated)
-            generateExcel(sortedResults, selectedFields, originalApps);
+            // NEW: Store main (non-deprecated, success) results for the
+            // "Download Excel" button — no re-processing needed on download.
+            _globalMainResults = sortedResults.filter(r => r.status === 'Success' && !r.isDeprecated);
+
+            // NEW: Render the on-screen preview automatically
+            renderPreviewTable(_globalMainResults, selectedFields, originalApps);
+
+            // Show "Download Excel" button if there is data to download
+            if (downloadBtn) {
+                downloadBtn.style.display = _globalMainResults.length > 0 ? 'inline-flex' : 'none';
+            }
 
             // Show deprecated download button if there are deprecated apps
             if (deprecatedOriginalResults.length > 0 && depBtn) {
-                depBtn.style.display = 'block';
-                depBtn.textContent = `⬇️ Download Deprecated Apps (${deprecatedOriginalResults.length})`;
+                depBtn.style.display = 'inline-flex';
+                depBtn.innerHTML = `<span class="btn-icon">⚠</span> Deprecated (${deprecatedOriginalResults.length})`;
             }
 
             progressText.textContent = `Completed: Processed ${totalProcessed} apps`;
